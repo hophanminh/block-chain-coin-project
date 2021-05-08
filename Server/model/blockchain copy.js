@@ -2,6 +2,12 @@ const SHA256 = require('crypto-js/sha256');
 const EC = require('elliptic').ec;
 const ec = new EC('secp256k1');
 
+// in seconds
+const BLOCK_GENERATION_INTERVAL = 10;
+
+// in blocks
+const DIFFICULTY_ADJUSTMENT_INTERVAL = 10;
+
 class Transaction {
     constructor(fromAddress, toAddress, amount) {
         this.fromAddress = fromAddress;
@@ -36,7 +42,8 @@ class Transaction {
 }
 
 class Block {
-    constructor(timestamp, transaction, previousHash = '') {
+    constructor(index, timestamp, transaction, previousHash = '') {
+        this.index = index
         this.timestamp = timestamp;
         this.transaction = transaction;
         this.previousHash = previousHash;
@@ -45,7 +52,7 @@ class Block {
     }
 
     calculateHash() {
-        return SHA256(this.previousHash + this.timestamp + JSON.stringify(this.transaction) + this.nonce).toString();
+        return SHA256(this.index, this.previousHash + this.timestamp + JSON.stringify(this.transaction) + this.nonce).toString();
     }
 
     mineBlock(difficulty) {
@@ -71,7 +78,7 @@ class Block {
 class BlockChain {
     constructor() {
         this.chain = [this.createGenesisBlock()];
-        this.difficulty = 5;
+        this.difficulty = 2;
         this.pendingTransactions = [];
         this.mineReward = 100;
     }
@@ -85,7 +92,7 @@ class BlockChain {
     }
 
     miniPendingTransaction(mineRewardAddress) {
-        let block = new Block(Date.now(), this.pendingTransactions);
+        let block = new Block(this.getLatestBlock().index + 1, Date.now(), this.pendingTransactions);
         block.mineBlock(this.difficulty);
         console.log("Block successfully mined");
         this.chain.push(block);
@@ -143,6 +150,25 @@ class BlockChain {
 
             return true;
         }
+    }
+
+    replaceChain (newBlocks) {
+        if (newBlocks.isChainValid() && newBlocks.chain.length > this.chain.length) {
+            console.log('Received blockchain is valid. Replacing current blockchain with received blockchain');
+            this.chain = newBlocks;
+            broadcastLatest();
+        } else {
+            console.log('Received blockchain invalid');
+        }
+    };
+
+    adjustDifficult () {
+    const latestBlock = this.chain.getLatestBlock();
+    if (latestBlock.index % DIFFICULTY_ADJUSTMENT_INTERVAL === 0 && latestBlock.index !== 0) {
+        return getAdjustedDifficulty(latestBlock, aBlockchain);
+    } else {
+        return latestBlock.difficulty;
+    }
     }
 }
 

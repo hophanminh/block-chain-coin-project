@@ -6,10 +6,12 @@ const myKey = ec.keyFromPrivate('6182404c59864c19c4b950a5ed2e4a618a01d18b06c50d9
 const walletAddress = myKey.getPublic('hex');
 
 let coin = new BlockChain();
-const tx1 = new Transaction(walletAddress, 'publicKeyHere', 100);
+const tx1 = new Transaction(walletAddress, 'publicKeyHere', 10);
 
 tx1.signTransaction(myKey);
 coin.addTransaction(tx1);
+coin.miniPendingTransaction(walletAddress);
+console.log("balance: " + coin.getBalanceOfAddress(walletAddress));
 coin.miniPendingTransaction(walletAddress);
 console.log("balance: " + coin.getBalanceOfAddress(walletAddress));
 
