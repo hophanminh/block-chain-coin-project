@@ -1,4 +1,3 @@
-  
 const express = require("express");
 const cors = require("cors");
 require('console-stamp')(console, '[HH:MM:ss.l]');
@@ -18,28 +17,11 @@ app.use(express.urlencoded({
 
 const { generateNextBlock, getBlockchain, generatenextBlockWithTransaction,
   getAccountBalance, getMyUnspentTransactionOutputs, getUnspentTxOuts, sendTransaction
-} = require('./models/Blockchain');
-const { getTransactionPool } = require('./models/transactionPool');
-const { getPublicFromWallet, initWallet } = require('./models/wallet');
-const {connectToPeers, getSockets, initP2PServer} = require('./websocket/p2p');
+} = require('./model/blockchain');
+const { getTransactionPool } = require('./model/transactionPool');
+const { getPublicFromWallet, initWallet } = require('./model/wallet');
+const { connectToPeers, getSockets, initP2PServer } = require('./websocket/p2p');
 
-var indexRouter = require('./routes/index');
-var usersRouter = require('./routes/users');
-
-var app = express();
-
-// view engine setup
-app.set('views', path.join(__dirname, 'views'));
-app.set('view engine', 'jade');
-
-app.use(logger('dev'));
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
-app.use(cookieParser());
-app.use(express.static(path.join(__dirname, 'public')));
-
-app.use('/', indexRouter);
-app.use('/users', usersRouter);
 
 const httpPort = parseInt(process.env.HTTP_PORT) || 9000;
 const p2pPort = parseInt(process.env.P2P_PORT) || 3000;

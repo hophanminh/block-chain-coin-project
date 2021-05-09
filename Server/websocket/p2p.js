@@ -1,8 +1,8 @@
 const WebSocket = require('ws');
 require('console-stamp')(console, '[HH:MM:ss.l]');
 const { Server } = require('ws');
-const { addBlock, Block, getBlockchain, getLatestBlock, replaceChain, isValidBlockStructure, handleReceivedTransaction } = require('../models/Blockchain');
-const { getTransactionPool } = require('../models/transactionPool');
+const { addBlock, Block, getBlockchain, getLatestBlock, replaceChain, isValidBlockStructure, handleReceivedTransaction } = require('../model/Blockchain');
+const { getTransactionPool } = require('../model/transactionPool');
 
 const sockets = [];
 
