@@ -1,10 +1,27 @@
-var createError = require('http-errors');
-var express = require('express');
-var path = require('path');
-var cookieParser = require('cookie-parser');
-var logger = require('morgan');
-{Block, generateNextBlock, getBlockchain} require('./model/blockchain');
-{connectToPeers, getSockets, initP2PServer} require('./websocket/p2p');
+  
+const express = require("express");
+const cors = require("cors");
+require('console-stamp')(console, '[HH:MM:ss.l]');
+require('dotenv').config()
+const http = require("http")
+const createError = require('http-errors');
+const app = express();
+app.use(express.static("public"));
+app.use(express.json());
+app.use(express.urlencoded({
+  extended: true
+}));
+// const URL = process.env.API;
+// app.use(cors({
+//   origin: [URL]
+// }));
+
+const { generateNextBlock, getBlockchain, generatenextBlockWithTransaction,
+  getAccountBalance, getMyUnspentTransactionOutputs, getUnspentTxOuts, sendTransaction
+} = require('./models/Blockchain');
+const { getTransactionPool } = require('./models/transactionPool');
+const { getPublicFromWallet, initWallet } = require('./models/wallet');
+const {connectToPeers, getSockets, initP2PServer} = require('./websocket/p2p');
 
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
@@ -24,60 +41,96 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
 
-const httpPort = parseInt(process.env.HTTP_PORT) || 3001;
-const p2pPort = parseInt(process.env.P2P_PORT) || 6001;
-
-  app.use((err, req, res, next) => {
-      if (err) {
-          res.status(400).send(err.message)
-      }
-  });
-
-  app.get('/blocks', (req, res) => {
-      res.send(getBlockchain());
-  });
-  app.post('/mineBlock', (req, res) => {
-      if (req.body.data == null) {
-          res.send('data parameter is missing');
-          return;
-      }
-      const newBlock = generateNextBlock(req.body.data);
-      if (newBlock === null) {
-          res.status(400).send('could not generate block');
-      } else {
-          res.send(newBlock);
-      }
-  });
-  app.get('/peers', (req, res) => {
-      res.send(getSockets().map((s) => s._socket.remoteAddress + ':' + s._socket.remotePort));
-  });
-  app.post('/addPeer', (req, res) => {
-      connectToPeers(req.body.peer);
-      res.send();
-  });
-
-  app.listen(myHttpPort, () => {
-      console.log('Listening http on port: ' + myHttpPort);
-  });
+const httpPort = parseInt(process.env.HTTP_PORT) || 9000;
+const p2pPort = parseInt(process.env.P2P_PORT) || 3000;
 
 
-initHttpServer(httpPort);
-initP2PServer(p2pPort);
+// route
+app.get('/blocks', (req, res) => {
+  res.send(getBlockchain());
+});
+
+app.get('/balance', (req, res) => {
+  const balance = getAccountBalance();
+  res.send({ 'balance': balance });
+});
+
+app.get('/unSpent', (req, res) => {
+  res.send(getUnspentTxOuts());
+});
+
+app.get('/myUnSpent', (req, res) => {
+  res.send(getMyUnspentTransactionOutputs());
+});
+
+app.get('/address', (req, res) => {
+  const address = getPublicFromWallet();
+  res.send({ 'address': address });
+});
+
+app.get('/pool', (req, res) => {
+  res.send(getTransactionPool());
+});
+
+app.get('/peers', (req, res) => {
+  res.send(getSockets().map((s) => s._socket.remoteAddress + ':' + s._socket.remotePort));
+});
+
+app.post('/mineBlock', (req, res) => {                 //  reward for miner, but without transaction
+  const newBlock = generateNextBlock();
+  if (newBlock === null) {
+    res.status(400).send('could not generate block');
+  } else {
+    res.send(newBlock);
+  }
+});
+
+app.post('/mineTransaction', (req, res) => {           //  reward for miner and with transaction
+  const address = req.body.address;
+  const amount = Number(req.body.amount);
+  try {
+    const resp = generatenextBlockWithTransaction(address, amount);
+    res.send(resp);
+  } catch (e) {
+    console.log(e.message);
+    res.status(400).send(e.message);
+  }
+});
+
+app.post('/sendTransaction', (req, res) => {
+  try {
+    const address = req.body.address;
+    const amount = req.body.amount;
+    if (address === undefined || amount === undefined) {
+      throw Error('invalid address or amount');
+    }
+    const resp = sendTransaction(address, amount);
+    res.send(resp);
+  } catch (e) {
+    console.log(e.message);
+    res.status(400).send(e.message);
+  }
+});
+
+app.post('/addPeer', (req, res) => {
+  connectToPeers(req.body.peer);
+  res.send();
+});
+
+app.post('/stop', (req, res) => {
+  res.send({ 'msg': 'stopping server' });
+  process.exit();
+});
 
 // catch 404 and forward to error handler
-app.use(function(req, res, next) {
-  next(createError(404));
+app.use(function (err, req, res, next) {
+  console.log(err)
 });
 
-// error handler
-app.use(function(err, req, res, next) {
-  // set locals, only providing error in development
-  res.locals.message = err.message;
-  res.locals.error = req.app.get('env') === 'development' ? err : {};
 
-  // render the error page
-  res.status(err.status || 500);
-  res.render('error');
+app.listen(httpPort, () => {
+  console.log('Listening http on port: ' + httpPort);
 });
 
-module.exports = app;
+initP2PServer(p2pPort);
+initWallet();
