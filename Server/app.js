@@ -5,11 +5,6 @@ require('dotenv').config()
 const http = require("http")
 const createError = require('http-errors');
 const app = express();
-app.use(express.static("public"));
-app.use(express.json());
-app.use(express.urlencoded({
-  extended: true
-}));
 // const URL = process.env.API;
 // app.use(cors({
 //   origin: [URL]
@@ -20,8 +15,27 @@ const { generateNextBlock, getBlockchain, generatenextBlockWithTransaction,
 } = require('./model/blockchain');
 const { getTransactionPool } = require('./model/transactionPool');
 const { getPublicFromWallet, initWallet } = require('./model/wallet');
-const { connectToPeers, getSockets, initP2PServer } = require('./websocket/p2p');
+const {connectToPeers, getSockets, initP2PServer} = require('./websocket/p2p');
 
+var indexRouter = require('./routes/index');
+var usersRouter = require('./routes/users');
+
+// view engine setup
+
+// app.use(logger('dev'));
+// app.use(cookieParser());
+app.use(express.static("public"));
+app.use(express.json());
+app.use(express.urlencoded({
+  extended: true
+}));
+
+app.set('view engine', 'jade');
+app.use(express.urlencoded({ extended: false }));
+
+
+app.use('/', indexRouter);
+app.use('/users', usersRouter);
 
 const httpPort = parseInt(process.env.HTTP_PORT) || 9000;
 const p2pPort = parseInt(process.env.P2P_PORT) || 3000;
