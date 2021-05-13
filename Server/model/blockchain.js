@@ -4,6 +4,8 @@ const hexToBinary = require('hex-to-binary');
 const { UnspentTxOut, Transaction, processTransactions, getCoinbaseTransaction, isValidAddress } = require('./transaction');
 const { createTransaction, findUnspentTxOuts, getBalance, getPrivateFromWallet, getPublicFromWallet } = require('./wallet');
 const { addToTransactionPool, getTransactionPool, updateTransactionPool } = require('./transactionPool');
+const { broadcastLatest, broadCastTransactionPool } = require('../websocket/p2p')
+// const {  } = require('../socket/p2p')
 
 class Block {
     constructor(index, hash, previousHash, timestamp, data, difficulty, nonce) {
@@ -42,7 +44,7 @@ const getMyUnspentTransactionOutputs = () => {
 };
 
 const setUnspentTxOuts = (newUnspentTxOut) => {
-    console.log('replacing unspentTxouts with: %s', newUnspentTxOut);
+    console.log('replacing unspentTxouts with: ' + newUnspentTxOut);
     unspentTxOuts = newUnspentTxOut;
 };
 
@@ -56,7 +58,6 @@ const generateRawNextBlock = (blockData) => {
 
     const newBlock = mineBlock(nextIndex, previousBlock.hash, nextTimestamp, blockData, difficulty);
     if (addBlock(newBlock)) {
-        const { broadcastLatest } = require('../socket/p2p')
         broadcastLatest();
         return newBlock;
     } else {
@@ -66,6 +67,12 @@ const generateRawNextBlock = (blockData) => {
 
 const generateNextBlock = () => {
     const coinbaseTx = getCoinbaseTransaction(getPublicFromWallet(), getLatestBlock().index + 1);
+    const blockData = [coinbaseTx].concat(getTransactionPool());
+    return generateRawNextBlock(blockData);
+};
+
+const generateNextBlockAnonymous = (publicKey) => {
+    const coinbaseTx = getCoinbaseTransaction(publicKey, getLatestBlock().index + 1);
     const blockData = [coinbaseTx].concat(getTransactionPool());
     return generateRawNextBlock(blockData);
 };
@@ -116,7 +123,6 @@ const getAccountBalance = () => {
 const sendTransaction = (address, amount) => {
     const tx = createTransaction(address, amount, getPrivateFromWallet(), getUnspentTxOuts(), getTransactionPool());
     addToTransactionPool(tx, getUnspentTxOuts());
-    const { broadCastTransactionPool } = require('../socket/p2p')
     broadCastTransactionPool();
     return tx;
 };
@@ -165,17 +171,12 @@ const isValidBlockStructure = (block) => {
         console.log('invalid block timestamp type');
         return false;
     }
-    // else if (typeof block.data !== 'object') {
-    //     console.log('invalid block data type');
-    //     return false;
-    // }
     return true;
 };
 
 const hashMatchesDifficulty = (hash, difficulty) => {
-    const hashInBinary = hexToBinary(hash);
     const requiredPrefix = '0'.repeat(difficulty);
-    return hashInBinary.startsWith(requiredPrefix);
+    return hash.startsWith(requiredPrefix);
 };
 
 const isValidNewBlock = (newBlock, previousBlock) => {
@@ -246,7 +247,6 @@ const replaceChain = (newBlocks) => {
         blockchain = newBlocks;
         setUnspentTxOuts(newUnspentTxOuts);
         updateTransactionPool(unspentTxOuts);
-        const { broadcastLatest } = require('../socket/p2p')
         broadcastLatest();
     } else {
         console.log('Received blockchain invalid');
@@ -274,6 +274,7 @@ module.exports = {
     getLatestBlock,
     generateRawNextBlock,
     generateNextBlock,
+    generateNextBlockAnonymous,
     generatenextBlockWithTransaction,
     getAccountBalance,
     isValidBlockStructure,

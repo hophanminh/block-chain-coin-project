@@ -5,13 +5,13 @@ require('dotenv').config()
 const http = require("http")
 const createError = require('http-errors');
 const app = express();
-// const URL = process.env.API;
-// app.use(cors({
-//   origin: [URL]
-// }));
+const URL = `http://localhost:3000`;
+app.use(cors({
+  origin: [URL]
+}));
 
 const { generateNextBlock, getBlockchain, generatenextBlockWithTransaction,
-  getAccountBalance, getMyUnspentTransactionOutputs, getUnspentTxOuts, sendTransaction
+  getAccountBalance, getMyUnspentTransactionOutputs, getUnspentTxOuts, sendTransaction, generateNextBlockAnonymous
 } = require('./model/blockchain');
 const { getTransactionPool } = require('./model/transactionPool');
 const { getPublicFromWallet, initWallet } = require('./model/wallet');
@@ -33,12 +33,8 @@ app.use(express.urlencoded({
 app.set('view engine', 'jade');
 app.use(express.urlencoded({ extended: false }));
 
-
-app.use('/', indexRouter);
-app.use('/users', usersRouter);
-
 const httpPort = parseInt(process.env.HTTP_PORT) || 9000;
-const p2pPort = parseInt(process.env.P2P_PORT) || 3000;
+const p2pPort = parseInt(process.env.P2P_PORT) || 3001;
 
 
 // route
@@ -47,6 +43,7 @@ app.get('/blocks', (req, res) => {
 });
 
 app.get('/balance', (req, res) => {
+  console.log("Here");
   const balance = getAccountBalance();
   res.send({ 'balance': balance });
 });
@@ -74,6 +71,17 @@ app.get('/peers', (req, res) => {
 
 app.post('/mineBlock', (req, res) => {                 //  reward for miner, but without transaction
   const newBlock = generateNextBlock();
+  if (newBlock === null) {
+    res.status(400).send('could not generate block');
+  } else {
+    res.send(newBlock);
+  }
+});
+
+app.post('/mineBlockAnonymous', (req, res) => {
+  const address = req.body.address;
+  console.log(address);                 //  reward for miner, but without transaction
+  const newBlock = generateNextBlockAnonymous(address);
   if (newBlock === null) {
     res.status(400).send('could not generate block');
   } else {
@@ -128,5 +136,5 @@ app.listen(httpPort, () => {
   console.log('Listening http on port: ' + httpPort);
 });
 
-initP2PServer(p2pPort);
+// initP2PServer(p2pPort);
 initWallet();
