@@ -1,11 +1,11 @@
 const CryptoJS = require("crypto-js");
 const _ = require('lodash');
 const hexToBinary = require('hex-to-binary');
+const {saveChain} = require('../utils/storeChain');
 const { UnspentTxOut, Transaction, processTransactions, getCoinbaseTransaction, isValidAddress } = require('./transaction');
 const { createTransaction, findUnspentTxOuts, getBalance, getPrivateFromWallet, getPublicFromWallet } = require('./wallet');
 const { addToTransactionPool, getTransactionPool, updateTransactionPool } = require('./transactionPool');
-const { broadcastLatest, broadCastTransactionPool } = require('../websocket/p2p')
-// const {  } = require('../socket/p2p')
+const { broadcastLatest, broadCastTransactionPool } = require('../websocket/p2p');
 
 class Block {
     constructor(index, hash, previousHash, timestamp, data, difficulty, nonce) {
@@ -59,6 +59,8 @@ const generateRawNextBlock = (blockData) => {
     const newBlock = mineBlock(nextIndex, previousBlock.hash, nextTimestamp, blockData, difficulty);
     if (addBlock(newBlock)) {
         broadcastLatest();
+        console.log("SAving block");
+        saveChain(blockchain);
         return newBlock;
     } else {
         return null;
@@ -72,6 +74,7 @@ const generateNextBlock = () => {
 };
 
 const generateNextBlockAnonymous = (publicKey) => {
+    console.log("Mining: " + publicKey);
     const coinbaseTx = getCoinbaseTransaction(publicKey, getLatestBlock().index + 1);
     const blockData = [coinbaseTx].concat(getTransactionPool());
     return generateRawNextBlock(blockData);
@@ -87,6 +90,28 @@ const generatenextBlockWithTransaction = (receiverAddress, amount) => {
         return null
     }
     const coinbaseTx = getCoinbaseTransaction(getPublicFromWallet(), getLatestBlock().index + 1);
+    const tx = createTransaction(receiverAddress, amount, getPrivateFromWallet(), getUnspentTxOuts(), getTransactionPool());
+
+    const blockData = [coinbaseTx, tx];
+    return generateRawNextBlock(blockData);
+};
+
+const generatenextBlockWithTransactionAnonymous = (senderAddress, receiverAddress, amount) => {
+    if (!isValidAddress(receiverAddress)) {
+        console.log('invalid address');
+        return null
+    }
+
+    if(!isValidAddress(senderAddress)) {
+        console.log('Invalid sender address');
+        return null;
+    }
+
+    if (typeof amount !== 'number') {
+        console.log('invalid amount');
+        return null
+    }
+    const coinbaseTx = getCoinbaseTransaction(senderAddress, getLatestBlock().index + 1);
     const tx = createTransaction(receiverAddress, amount, getPrivateFromWallet(), getUnspentTxOuts(), getTransactionPool());
 
     const blockData = [coinbaseTx, tx];
@@ -120,8 +145,18 @@ const getAccountBalance = () => {
     return getBalance(getPublicFromWallet(), getUnspentTxOuts());
 };
 
+const getAccountBalanceAnonymous = (address) => {
+    return getBalance(address, getUnspentTxOuts());
+};
+
 const sendTransaction = (address, amount) => {
     const tx = createTransaction(address, amount, getPrivateFromWallet(), getUnspentTxOuts(), getTransactionPool());
+    addToTransactionPool(tx, getUnspentTxOuts());
+    broadCastTransactionPool();
+    return tx;
+};
+
+const sendTransactionAnonymous = (transaction) => {
     addToTransactionPool(tx, getUnspentTxOuts());
     broadCastTransactionPool();
     return tx;
@@ -141,6 +176,7 @@ const addBlock = (newBlock) => {
             return false;
         } else {
             blockchain.push(newBlock);
+            // saveChain(blockchain)
             setUnspentTxOuts(retVal);
             updateTransactionPool(unspentTxOuts);
             return true;
@@ -248,6 +284,7 @@ const replaceChain = (newBlocks) => {
         setUnspentTxOuts(newUnspentTxOuts);
         updateTransactionPool(unspentTxOuts);
         broadcastLatest();
+        saveChain(blockchain);
     } else {
         console.log('Received blockchain invalid');
     }
@@ -268,6 +305,15 @@ const handleReceivedTransaction = (transaction) => {
     addToTransactionPool(transaction, getUnspentTxOuts());
 };
 
+const getFinishTransactionAnonymous = (chain, address) => {
+    const finishTx = _(chain)
+    .map(block => block.data)
+    .flatten()
+    .value();
+    const guestList = finishTx.filter(i => i.sender === address || i.receiver === address)
+    return guestList
+}
+
 module.exports = {
     Block,
     getBlockchain,
@@ -282,6 +328,10 @@ module.exports = {
     addBlock,
     getUnspentTxOuts,
     sendTransaction,
+    sendTransactionAnonymous,
     handleReceivedTransaction,
-    getMyUnspentTransactionOutputs
+    getMyUnspentTransactionOutputs,
+    getAccountBalanceAnonymous,
+    generatenextBlockWithTransactionAnonymous,
+    getFinishTransactionAnonymous
 };

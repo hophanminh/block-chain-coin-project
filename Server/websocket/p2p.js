@@ -16,19 +16,19 @@ const MessageType = {
 
 const initP2PServer = (p2pPort) => {
     const server = new WebSocket.Server({ port: p2pPort });
-    server.on('connection', (ws) => {
-        initConnection(ws);
+    server.on('connection', (websocket) => {
+        initConnection(websocket);
     });
     console.log('listening websocket p2p port on: ' + p2pPort);
 };
 
 const getSockets = () => sockets;
 
-const initConnection = (ws) => {
-    sockets.push(ws);
-    initMessageHandler(ws);
-    initErrorHandler(ws);
-    write(ws, queryChainLengthMsg());
+const initConnection = (websocket) => {
+    sockets.push(websocket);
+    initMessageHandler(websocket);
+    initErrorHandler(websocket);
+    write(websocket, queryChainLengthMsg());
     // wait until connected
     setTimeout(() => {
         broadcast(queryTransactionPoolMsg());
@@ -44,8 +44,8 @@ const JSONToObject = (data) => {
     }
 };
 
-const initMessageHandler = (ws) => {
-    ws.on('message', (data) => {
+const initMessageHandler = (websocket) => {
+    websocket.on('message', (data) => {
         try {
             const message = JSONToObject(data);
             if (message === null) {
@@ -55,10 +55,10 @@ const initMessageHandler = (ws) => {
             console.log('Received message' + JSON.stringify(message));
             switch (message.type) {
                 case MessageType.QUERY_LATEST:
-                    write(ws, responseLatestMsg());
+                    write(websocket, responseLatestMsg());
                     break;
                 case MessageType.QUERY_ALL:
-                    write(ws, responseChainMsg());
+                    write(websocket, responseChainMsg());
                     break;
                 case MessageType.RESPONSE_BLOCKCHAIN:
                     const receivedBlocks = JSONToObject(message.data);
@@ -70,7 +70,7 @@ const initMessageHandler = (ws) => {
                     handleBlockchainResponse(receivedBlocks);
                     break;
                 case MessageType.QUERY_TRANSACTION_POOL:
-                    write(ws, responseTransactionPoolMsg());
+                    write(websocket, responseTransactionPoolMsg());
                     break;
                 case MessageType.RESPONSE_TRANSACTION_POOL:
                     const receivedTransactions = JSONToObject(message.data);
@@ -97,7 +97,7 @@ const initMessageHandler = (ws) => {
     });
 };
 
-const write = (ws, message) => ws.send(JSON.stringify(message));
+const write = (websocket, message) => websocket.send(JSON.stringify(message));
 const broadcast = (message) => sockets.forEach((socket) => write(socket, message));
 
 const queryChainLengthMsg = () => ({ 'type': MessageType.QUERY_LATEST, 'data': null });
@@ -122,13 +122,13 @@ const responseTransactionPoolMsg = () => ({
     'data': JSON.stringify(getTransactionPool())
 });
 
-const initErrorHandler = (ws) => {
+const initErrorHandler = (websocket) => {
     const closeConnection = (myWs) => {
         console.log('connection failed to peer: ' + myWs.url);
         sockets.splice(sockets.indexOf(myWs), 1);
     };
-    ws.on('close', () => closeConnection(ws));
-    ws.on('error', () => closeConnection(ws));
+    websocket.on('close', () => closeConnection(websocket));
+    websocket.on('error', () => closeConnection(websocket));
 };
 
 const handleBlockchainResponse = (receivedBlocks) => {
@@ -171,11 +171,11 @@ const broadCastTransactionPool = () => {
 
 const connectToPeers = (newPeer) => {
     try {
-        const ws = new WebSocket(newPeer);
-        ws.on('open', () => {
-            initConnection(ws);
+        const websocket = new WebSocket(newPeer);
+        websocket.on('open', () => {
+            initConnection(websocket);
         });
-        ws.on('error', () => {
+        websocket.on('error', () => {
             console.log('connection failed');
         });
     }

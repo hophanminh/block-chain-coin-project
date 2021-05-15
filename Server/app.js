@@ -4,16 +4,32 @@ require('console-stamp')(console, '[HH:MM:ss.l]');
 require('dotenv').config()
 const http = require("http")
 const createError = require('http-errors');
+const fs = require('fs');
 const app = express();
 const URL = `http://localhost:3000`;
 app.use(cors({
   origin: [URL]
 }));
 
-const { generateNextBlock, getBlockchain, generatenextBlockWithTransaction,
-  getAccountBalance, getMyUnspentTransactionOutputs, getUnspentTxOuts, sendTransaction, generateNextBlockAnonymous
-} = require('./model/blockchain');
-const { getTransactionPool } = require('./model/transactionPool');
+const { getBlockchain,
+  getLatestBlock,
+  generateRawNextBlock,
+  generateNextBlock,
+  generateNextBlockAnonymous,
+  generatenextBlockWithTransaction,
+  getAccountBalance,
+  isValidBlockStructure,
+  replaceChain,
+  addBlock,
+  getUnspentTxOuts,
+  sendTransaction,
+  sendTransactionAnonymous,
+  handleReceivedTransaction,
+  getMyUnspentTransactionOutputs,
+  getAccountBalanceAnonymous,
+  generatenextBlockWithTransactionAnonymous,
+  getFinishTransactionAnonymous} = require('./model/blockchain');
+const { getTransactionPool, setTransactionPool } = require('./model/transactionPool');
 const { getPublicFromWallet, initWallet } = require('./model/wallet');
 const {connectToPeers, getSockets, initP2PServer} = require('./websocket/p2p');
 
@@ -38,6 +54,24 @@ const p2pPort = parseInt(process.env.P2P_PORT) || 3001;
 
 
 // route
+initWallet();
+const { saveTransaction, readTransaction, saveChain, readChain } = require('./utils/storeChain')
+const blockchainLocation = 'keys/chain.json';
+const poolLocation = 'keys/transaction.json';
+if (fs.existsSync("chaindb/chain.json")) {
+  const data = readChain()
+  //console.log(data)
+  if (data && data.length === 1) {
+    return
+  }
+  replaceChain(data)
+}
+
+if (fs.existsSync("transactitondb")) {
+  setTransactionPool(readTransaction())
+}
+
+
 app.get('/blocks', (req, res) => {
   res.send(getBlockchain());
 });
@@ -45,6 +79,12 @@ app.get('/blocks', (req, res) => {
 app.get('/balance', (req, res) => {
   console.log("Here");
   const balance = getAccountBalance();
+  res.send({ 'balance': balance });
+});
+
+app.post('/balanceAnonymous', (req, res) => {
+  console.log(req.body.address);
+  const balance = getAccountBalanceAnonymous(req.body.address);
   res.send({ 'balance': balance });
 });
 
@@ -116,6 +156,18 @@ app.post('/sendTransaction', (req, res) => {
   }
 });
 
+app.post('/sendTransactionAnonymous', (req, res) => {
+  try {
+    const transaction = req.body.transaction;
+    console.log("Transaction: " + transaction);
+    const resp = sendTransactionAnonymous(transaction);
+    res.send(resp);
+  } catch (e) {
+    console.log(e.message);
+    res.status(400).send(e.message);
+  }
+});
+
 app.post('/addPeer', (req, res) => {
   connectToPeers(req.body.peer);
   res.send();
@@ -124,6 +176,16 @@ app.post('/addPeer', (req, res) => {
 app.post('/stop', (req, res) => {
   res.send({ 'msg': 'stopping server' });
   process.exit();
+});
+
+app.post('/finishTransactionAnonymous', (req, res) => {
+  try {
+    const pool = getFinishTransactionAnonymous(getBlockchain(), req.body.address);
+    res.send(pool);
+  }
+  catch (error) {
+    res.status(400).send(error.message);
+  }
 });
 
 // catch 404 and forward to error handler
@@ -136,5 +198,4 @@ app.listen(httpPort, () => {
   console.log('Listening http on port: ' + httpPort);
 });
 
-// initP2PServer(p2pPort);
-initWallet();
+initP2PServer(p2pPort);
