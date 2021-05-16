@@ -1,6 +1,6 @@
 const _ = require('lodash');
 const { Transaction, TxIn, UnspentTxOut, validateTransaction } = require('./transaction');
-
+const {saveTransaction} = require('../utils/storeChain');
 let transactionPool = [];
 
 const getTransactionPool = () => {
@@ -18,6 +18,7 @@ const addToTransactionPool = (tx, unspentTxOuts) => {
     }
     console.log('adding to txPool: %s', JSON.stringify(tx));
     transactionPool.push(tx);
+    saveTransaction(transactionPool)
 };
 
 const hasTxIn = (txIn, unspentTxOuts) => {
@@ -40,7 +41,9 @@ const updateTransactionPool = (unspentTxOuts) => {
     if (invalidTxs.length > 0) {
         console.log('removing the following transactions from txPool: %s', JSON.stringify(invalidTxs));
         transactionPool = _.without(transactionPool, ...invalidTxs);
+        saveTransaction(transactionPool)
     }
+
 };
 
 const getTxPoolIns = (aTransactionPool) => {

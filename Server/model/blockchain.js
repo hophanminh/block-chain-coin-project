@@ -96,7 +96,7 @@ const generatenextBlockWithTransaction = (receiverAddress, amount) => {
     return generateRawNextBlock(blockData);
 };
 
-const generatenextBlockWithTransactionAnonymous = (senderAddress, receiverAddress, amount) => {
+const generatenextBlockWithTransactionAnonymous = (senderAddress, receiverAddress, amount, privateKey) => {
     if (!isValidAddress(receiverAddress)) {
         console.log('invalid address');
         return null
@@ -111,8 +111,9 @@ const generatenextBlockWithTransactionAnonymous = (senderAddress, receiverAddres
         console.log('invalid amount');
         return null
     }
+
     const coinbaseTx = getCoinbaseTransaction(senderAddress, getLatestBlock().index + 1);
-    const tx = createTransaction(receiverAddress, amount, getPrivateFromWallet(), getUnspentTxOuts(), getTransactionPool());
+    const tx = createTransaction(receiverAddress, amount, privateKey, getUnspentTxOuts(), getTransactionPool());
 
     const blockData = [coinbaseTx, tx];
     return generateRawNextBlock(blockData);
@@ -157,9 +158,9 @@ const sendTransaction = (address, amount) => {
 };
 
 const sendTransactionAnonymous = (transaction) => {
-    addToTransactionPool(tx, getUnspentTxOuts());
+    addToTransactionPool(transaction, getUnspentTxOuts());
     broadCastTransactionPool();
-    return tx;
+    return transaction;
 };
 
 const calculateHashForBlock = (block) =>
@@ -211,6 +212,8 @@ const isValidBlockStructure = (block) => {
 };
 
 const hashMatchesDifficulty = (hash, difficulty) => {
+    console.log("hash: " + hash );
+    console.log("difficulty: " + difficulty)
     const requiredPrefix = '0'.repeat(difficulty);
     return hash.startsWith(requiredPrefix);
 };
@@ -306,12 +309,20 @@ const handleReceivedTransaction = (transaction) => {
 };
 
 const getFinishTransactionAnonymous = (chain, address) => {
-    const finishTx = _(chain)
+    const finishTransaction = _(chain)
     .map(block => block.data)
     .flatten()
     .value();
-    const guestList = finishTx.filter(i => i.sender === address || i.receiver === address)
+    const guestList = finishTransaction.filter(i => i.sender === address || i.receiver === address)
     return guestList
+}
+
+const getFinishTransaction = (chain) => {
+    const finishTransaction = _(chain)
+    .map(block => block.data)
+    .flatten()
+    .value();
+    return finishTransaction
 }
 
 module.exports = {
@@ -333,5 +344,6 @@ module.exports = {
     getMyUnspentTransactionOutputs,
     getAccountBalanceAnonymous,
     generatenextBlockWithTransactionAnonymous,
-    getFinishTransactionAnonymous
+    getFinishTransactionAnonymous,
+    getFinishTransaction
 };

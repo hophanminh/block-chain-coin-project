@@ -7,6 +7,7 @@ const createError = require('http-errors');
 const fs = require('fs');
 const app = express();
 const URL = `http://localhost:3000`;
+const _ = require('lodash');
 app.use(cors({
   origin: [URL]
 }));
@@ -28,7 +29,9 @@ const { getBlockchain,
   getMyUnspentTransactionOutputs,
   getAccountBalanceAnonymous,
   generatenextBlockWithTransactionAnonymous,
-  getFinishTransactionAnonymous} = require('./model/blockchain');
+  getFinishTransactionAnonymous,
+  getFinishTransaction
+} = require('./model/blockchain');
 const { getTransactionPool, setTransactionPool } = require('./model/transactionPool');
 const { getPublicFromWallet, initWallet } = require('./model/wallet');
 const {connectToPeers, getSockets, initP2PServer} = require('./websocket/p2p');
@@ -109,6 +112,24 @@ app.get('/peers', (req, res) => {
   res.send(getSockets().map((s) => s._socket.remoteAddress + ':' + s._socket.remotePort));
 });
 
+app.get('/block/:id', (req, res) => {
+  const block = _.find(getBlockchain(), { 'index': Number(req.params.id) });
+  if (block) {
+    res.send(block);
+  }
+  else {
+    res.status(400).send('could not find block');
+  }
+});
+
+app.get('/transaction/:id', (req, res) => {
+  const tx = _(getBlockchain())
+    .map((blocks) => blocks.data)
+    .flatten()
+    .find({ 'id': req.params.id });
+  res.send(tx);
+});
+
 app.post('/mineBlock', (req, res) => {                 //  reward for miner, but without transaction
   const newBlock = generateNextBlock();
   if (newBlock === null) {
@@ -160,7 +181,17 @@ app.post('/sendTransactionAnonymous', (req, res) => {
   try {
     const transaction = req.body.transaction;
     console.log("Transaction: " + transaction);
-    const resp = sendTransactionAnonymous(transaction);
+    const sender = req.body.sender;
+    console.log("Transaction: " + sender);
+    const reeceiver = req.body.reeceiver;
+    console.log("Transaction: " + reeceiver);
+    const amount = req.body.amount;
+    console.log("Transaction: " + amount);
+    const privateKey = req.body.privateKey;
+    console.log("Transaction: " + privateKey);
+
+    // const resp = sendTransactionAnonymous(transaction);
+    const resp = generatenextBlockWithTransactionAnonymous(sender, reeceiver, amount, privateKey)
     res.send(resp);
   } catch (e) {
     console.log(e.message);
@@ -186,6 +217,12 @@ app.post('/finishTransactionAnonymous', (req, res) => {
   catch (error) {
     res.status(400).send(error.message);
   }
+});
+
+app.get('/finishTransaction', (req, res) => {
+  const pool = getFinishTransaction(getBlockchain());
+  console.log(pool[0]);
+  res.send(pool);
 });
 
 // catch 404 and forward to error handler

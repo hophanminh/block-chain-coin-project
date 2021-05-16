@@ -4,7 +4,7 @@ const _ = require('lodash');
 
 const ec = new ecdsa.ec('secp256k1');
 
-const COINBASE_AMOUNT = 50;
+const REWARD = 50;
 
 class UnspentTxOut {
     constructor(txOutId, txOutIndex, address, amount) {
@@ -31,10 +31,13 @@ class TxOut {
 }
 
 class Transaction {
-    constructor(id, txIns, txOuts) {
+    constructor(id, txIns, txOuts, amount, sender, receiver) {
         this.id = id;
         this.txIns = txIns || [];
         this.txOuts = txOuts || [];
+        this.amount = amount;
+        this.sender = sender;
+        this.receiver = receiver;
     }
 }
 
@@ -152,7 +155,7 @@ const validateCoinbaseTx = (transaction, blockIndex) => {
         console.log('invalid number of txOuts in coinbase transaction');
         return false;
     }
-    if (transaction.txOuts[0].amount !== COINBASE_AMOUNT) {
+    if (transaction.txOuts[0].amount !== REWARD) {
         console.log('invalid coinbase amount in coinbase transaction');
         return false;
     }
@@ -192,7 +195,10 @@ const getCoinbaseTransaction = (address, blockIndex) => {
     txIn.txOutIndex = blockIndex;
 
     t.txIns = [txIn];
-    t.txOuts = [new TxOut(address, COINBASE_AMOUNT)];
+    t.txOuts = [new TxOut(address, REWARD)];
+    t.sender = '';
+    t.receiver = address;
+    t.amount = REWARD;
     t.id = getTransactionId(t);
     return t;
 };
