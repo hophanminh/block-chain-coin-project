@@ -58,9 +58,9 @@ const p2pPort = parseInt(process.env.P2P_PORT) || 3001;
 
 // route
 initWallet();
-const { saveTransaction, readTransaction, saveChain, readChain } = require('./utils/storeChain')
-const blockchainLocation = 'keys/chain.json';
-const poolLocation = 'keys/transaction.json';
+initP2PServer(p2pPort);
+
+const { readTransaction, readChain } = require('./utils/storeChain')
 if (fs.existsSync("chaindb/chain.json")) {
   const data = readChain()
   //console.log(data)
@@ -70,7 +70,7 @@ if (fs.existsSync("chaindb/chain.json")) {
   replaceChain(data)
 }
 
-if (fs.existsSync("transactitondb")) {
+if (fs.existsSync("transactitondb/transactiondb")) {
   setTransactionPool(readTransaction())
 }
 
@@ -180,17 +180,11 @@ app.post('/sendTransaction', (req, res) => {
 app.post('/sendTransactionAnonymous', (req, res) => {
   try {
     const transaction = req.body.transaction;
-    console.log("Transaction: " + transaction);
     const sender = req.body.sender;
-    console.log("Transaction: " + sender);
     const reeceiver = req.body.reeceiver;
-    console.log("Transaction: " + reeceiver);
     const amount = req.body.amount;
-    console.log("Transaction: " + amount);
     const privateKey = req.body.privateKey;
-    console.log("Transaction: " + privateKey);
 
-    // const resp = sendTransactionAnonymous(transaction);
     const resp = generatenextBlockWithTransactionAnonymous(sender, reeceiver, amount, privateKey)
     res.send(resp);
   } catch (e) {
@@ -235,4 +229,3 @@ app.listen(httpPort, () => {
   console.log('Listening http on port: ' + httpPort);
 });
 
-initP2PServer(p2pPort);

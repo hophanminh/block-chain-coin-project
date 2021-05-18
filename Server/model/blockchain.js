@@ -26,7 +26,7 @@ const BLOCK_GENERATION_INTERVAL = 10;
 const DIFFICULTY_ADJUSTMENT_INTERVAL = 10;
 
 const genesisBlock = new Block(
-    0, '816534932c2b7154836da6afc367695e6337db8a921823784c14378abed4f7d7', '', 1465154705, [], 0, 0
+    0, '04619ad0f56fd752d3c48d5b8ad6160452a2faaed41613fe37db6f3075e94941e620ab0c84254665c2775a33f99516bf5ba2274fcb8f3fffb4f5fd6b1b85b1693f', '', 1465154705, [], 3, 0
 );
 
 let blockchain = [genesisBlock];
@@ -48,7 +48,7 @@ const setUnspentTxOuts = (newUnspentTxOut) => {
     unspentTxOuts = newUnspentTxOut;
 };
 
-const getCurrentTimestamp = () => Math.round(new Date().getTime() / 1000);
+const getCurrentTimestamp = () => Math.round(new Date().getTime());
 
 const generateRawNextBlock = (blockData) => {
     const previousBlock = getLatestBlock();
@@ -59,7 +59,7 @@ const generateRawNextBlock = (blockData) => {
     const newBlock = mineBlock(nextIndex, previousBlock.hash, nextTimestamp, blockData, difficulty);
     if (addBlock(newBlock)) {
         broadcastLatest();
-        console.log("SAving block");
+        console.log("Saving block");
         saveChain(blockchain);
         return newBlock;
     } else {

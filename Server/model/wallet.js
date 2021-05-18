@@ -126,6 +126,10 @@ const createTransaction = (receiverAddress, amount, privateKey, unspentTxOuts, t
         return txIn;
     });
 
+    tx.sender = myAddress;
+    tx.receiver = receiverAddress;
+    tx.amount = amount
+
     return tx;
 };
 

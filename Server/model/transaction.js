@@ -196,7 +196,7 @@ const getCoinbaseTransaction = (address, blockIndex) => {
 
     t.txIns = [txIn];
     t.txOuts = [new TxOut(address, REWARD)];
-    t.sender = '';
+    t.sender = 'Server';
     t.receiver = address;
     t.amount = REWARD;
     t.id = getTransactionId(t);
